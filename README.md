@@ -61,12 +61,15 @@ Besides the values `init` asks for, you can edit:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
+| `localReposPath` | `""` | Base path for local repos (e.g. `/Users/you/Projects`). Looks for repo named same as folder. |
+| `localRepos` | `{}` | Map of `org/repo` to exact local path, e.g. `{"acme/app": "/Users/you/code/app"}`. Overrides `localReposPath`. |
 | `timeoutMinutes` | `40` | Kill a review that runs longer than this |
 | `allowedTools` | read-only tools plus `git` and `gh pr view/diff` | Tools Claude Code may use without asking; everything else is denied |
 | `extraInstructions` | `""` | Appended to the prompt, e.g. `Use mode:report-only` or `Focus on security` |
 
 Environment variables override the file: `PR_REVIEWER_SLACK_BOT_TOKEN`, `PR_REVIEWER_SLACK_APP_TOKEN`,
-`PR_REVIEWER_CHANNEL_ID`, `PR_REVIEWER_ALLOWED_ORGS` (comma-separated), `PR_REVIEWER_SKILL`.
+`PR_REVIEWER_CHANNEL_ID`, `PR_REVIEWER_ALLOWED_ORGS` (comma-separated), `PR_REVIEWER_SKILL`,
+`PR_REVIEWER_LOCAL_REPOS_PATH`.
 The background service reads only the config file, so use `init` if you install the service.
 
 ## Security notes

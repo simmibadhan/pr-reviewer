@@ -14,6 +14,8 @@ export const DEFAULTS = {
   allowedOrgs: [],
   skill: "ce-code-review",
   extraInstructions: "",
+  localReposPath: "",
+  localRepos: {},
   timeoutMinutes: 40,
   // Tools Claude Code may use without asking. Anything else is silently denied,
   // which keeps the run non-interactive and limits what untrusted PR content can trigger.
@@ -35,6 +37,7 @@ const ENV_OVERRIDES = {
   slackAppToken: "PR_REVIEWER_SLACK_APP_TOKEN",
   channelId: "PR_REVIEWER_CHANNEL_ID",
   skill: "PR_REVIEWER_SKILL",
+  localReposPath: "PR_REVIEWER_LOCAL_REPOS_PATH",
 };
 
 export function readConfigFile() {

@@ -32,6 +32,16 @@ export async function runInit() {
     );
     cfg.allowedOrgs = orgs.split(",").map((s) => s.trim()).filter(Boolean);
     cfg.skill = await ask("Claude Code skill to run", current.skill);
+    cfg.localReposPath = await ask("Local repos base path (optional, for repos in a single folder)", current.localReposPath);
+    const localReposStr = await ask(
+      "Local repos mapping (org/repo=/path, comma-separated, or empty)",
+      Object.entries(current.localRepos).map(([k, v]) => `${k}=${v}`).join(", "),
+    );
+    cfg.localRepos = {};
+    for (const entry of localReposStr.split(",").map(s => s.trim()).filter(Boolean)) {
+      const [slug, path] = entry.split("=");
+      if (slug && path) cfg.localRepos[slug.trim()] = path.trim();
+    }
     cfg.extraInstructions = await ask("Extra instructions for the reviewer (optional)", current.extraInstructions);
 
     const warnings = [];

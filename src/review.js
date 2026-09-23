@@ -64,23 +64,52 @@ export async function reviewPr(rawUrl, cfg, { force = false, log = () => {} } = 
   const short = sha.slice(0, 7);
   const stateFile = join(STATE_DIR, `${pr.owner}_${pr.repo}_${pr.number}_${sha}`);
 
+  // Check for recent comments (last 10 minutes)
   if (!force) {
-    if (existsSync(stateFile)) return result("skipped", `${pr.url} @ ${short} was already reviewed`);
-    const existing = await run("gh", ["api", `repos/${pr.slug}/pulls/${pr.number}/reviews`, "--paginate", "--jq", ".[].body"]);
-    if (existing.code === 0 && existing.stdout.includes(marker(sha))) {
-      await markDone(stateFile);
-      return result("skipped", `${pr.url} @ ${short} already has a pr-reviewer review`);
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const recent = await run("gh", [
+      "api",
+      `repos/${pr.slug}/issues/${pr.number}/comments`,
+      "--paginate",
+      "--jq",
+      `.[] | select(.created_at > "${tenMinAgo}") | .body`,
+    ]);
+    if (recent.code === 0 && recent.stdout.trim()) {
+      return result("skipped", `${pr.url}: recent comment already exists, skipped`);
     }
   }
 
   const work = await mkdtemp(join(tmpdir(), "pr-reviewer-"));
-  try {
-    const dir = join(work, "repo");
+  let useLocal = false;
+  let dir;
+
+  // Check for local repo - first exact mapping, then base path fallback
+  if (cfg.localRepos && cfg.localRepos[pr.slug] && existsSync(cfg.localRepos[pr.slug])) {
+    dir = cfg.localRepos[pr.slug];
+    useLocal = true;
+    log(`using local repo ${dir}`);
+    await runOrThrow("git", ["fetch", "origin", info.baseRefName, "--quiet"], { cwd: dir });
+    await runOrThrow("gh", ["pr", "checkout", pr.number], { cwd: dir });
+  } else if (cfg.localReposPath) {
+    const localDir = join(cfg.localReposPath, pr.repo);
+    if (existsSync(localDir)) {
+      dir = localDir;
+      useLocal = true;
+      log(`using local repo ${localDir}`);
+      await runOrThrow("git", ["fetch", "origin", info.baseRefName, "--quiet"], { cwd: dir });
+      await runOrThrow("gh", ["pr", "checkout", pr.number], { cwd: dir });
+    }
+  }
+
+  if (!useLocal) {
+    dir = join(work, "repo");
     log(`cloning ${pr.slug}…`);
     await runOrThrow("gh", ["repo", "clone", pr.slug, dir, "--", "--quiet"]);
     await runOrThrow("gh", ["pr", "checkout", pr.number], { cwd: dir });
     await runOrThrow("git", ["fetch", "origin", info.baseRefName, "--quiet"], { cwd: dir });
+  }
 
+  try {
     // Random name so a file committed in the PR can't masquerade as our output.
     const outName = `.pr-review-${randomBytes(6).toString("hex")}.md`;
     const outFile = join(dir, outName);
@@ -102,10 +131,7 @@ export async function reviewPr(rawUrl, cfg, { force = false, log = () => {} } = 
     if (!review) return result("failed", `${pr.url}: review file was empty`);
     if (review.length > MAX_BODY) review = review.slice(0, MAX_BODY) + "\n\n…(truncated)";
 
-    const body =
-      `${review}\n\n---\n` +
-      `<sub>Automated review by pr-reviewer using the \`${cfg.skill}\` skill, for commit ${short}.</sub>\n` +
-      `${marker(sha)}\n`;
+    const body = review;
     const bodyFile = join(work, "body.md");
     await writeFile(bodyFile, body);
 
