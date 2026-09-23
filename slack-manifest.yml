@@ -1,0 +1,22 @@
+# Paste this at https://api.slack.com/apps → Create New App → From an app manifest
+display_information:
+  name: PR Reviewer
+  description: Reviews GitHub pull requests posted in this channel with Claude Code
+features:
+  bot_user:
+    display_name: pr-reviewer
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - channels:history   # read messages in public channels it's invited to
+      - groups:history     # same, for private channels
+      - chat:write         # reply in thread with status
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  token_rotation_enabled: false
